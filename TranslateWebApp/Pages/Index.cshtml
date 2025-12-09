@@ -1,0 +1,199 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Çeviri Uygulaması";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h1 class="mb-0">🌍 Çeviri Uygulaması</h1>
+                    <p class="mb-0 mt-2">Türkçe ve Popüler Diller Arasında Çeviri</p>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Kaynak Dil Bölümü -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Kaynak Dil:</label>
+                        <select id="sourceLanguage" class="form-select form-select-lg mb-3">
+                            <option value="tr" selected>Türkçe</option>
+                            <option value="en">İngilizce</option>
+                            <option value="de">Almanca</option>
+                            <option value="fr">Fransızca</option>
+                            <option value="it">İtalyanca</option>
+                            <option value="es">İspanyolca</option>
+                        </select>
+                        <label class="form-label fw-bold">Kaynak Metin:</label>
+                        <textarea id="sourceText" class="form-control" rows="8" 
+                                  placeholder="Çevrilecek metni buraya yazın..."></textarea>
+                    </div>
+
+                    <!-- Butonlar -->
+                    <div class="d-flex justify-content-center gap-3 mb-4">
+                        <button id="translateBtn" class="btn btn-primary btn-lg px-5">
+                            <i class="bi bi-arrow-left-right"></i> Çevir
+                        </button>
+                        <button id="swapBtn" class="btn btn-warning btn-lg px-5">
+                            <i class="bi bi-arrow-left-right"></i> Dilleri Değiştir
+                        </button>
+                    </div>
+
+                    <!-- Hedef Dil Bölümü -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Hedef Dil:</label>
+                        <select id="targetLanguage" class="form-select form-select-lg mb-3">
+                            <option value="tr">Türkçe</option>
+                            <option value="en" selected>İngilizce</option>
+                            <option value="de">Almanca</option>
+                            <option value="fr">Fransızca</option>
+                            <option value="it">İtalyanca</option>
+                            <option value="es">İspanyolca</option>
+                        </select>
+                        <label class="form-label fw-bold">Çeviri Sonucu:</label>
+                        <textarea id="targetText" class="form-control" rows="8" 
+                                  placeholder="Çeviri sonucu burada görünecek..." readonly></textarea>
+                    </div>
+
+                    <!-- Durum Mesajı -->
+                    <div id="statusMessage" class="alert alert-info d-none" role="alert"></div>
+                </div>
+            </div>
+
+            <!-- Bilgi Kartı -->
+            <div class="card mt-4 border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">✅ Ücretsiz Çeviri Servisi</h5>
+                    <p class="card-text">
+                        Bu uygulama <strong>MyMemory Translation API</strong> kullanmaktadır. 
+                        <strong>API anahtarı gerektirmez</strong> ve tamamen ücretsizdir!
+                    </p>
+                    <ul class="mb-0">
+                        <li>Günlük limit: 10,000 kelime</li>
+                        <li>API anahtarı gerektirmez</li>
+                        <li>Anında kullanıma hazır</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const translateBtn = document.getElementById('translateBtn');
+        const swapBtn = document.getElementById('swapBtn');
+        const sourceText = document.getElementById('sourceText');
+        const targetText = document.getElementById('targetText');
+        const sourceLanguage = document.getElementById('sourceLanguage');
+        const targetLanguage = document.getElementById('targetLanguage');
+        const statusMessage = document.getElementById('statusMessage');
+
+        translateBtn.addEventListener('click', async () => {
+            const text = sourceText.value.trim();
+            
+            if (!text) {
+                showStatus('Lütfen çevrilecek metni girin.', 'warning');
+                return;
+            }
+
+            if (sourceLanguage.value === targetLanguage.value) {
+                showStatus('Kaynak ve hedef dil aynı olamaz!', 'warning');
+                return;
+            }
+
+            translateBtn.disabled = true;
+            translateBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Çeviriliyor...';
+            showStatus('Çeviriliyor...', 'info');
+
+            try {
+                const response = await fetch('/api/translation/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        fromLanguage: sourceLanguage.value,
+                        toLanguage: targetLanguage.value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    targetText.value = data.translatedText;
+                    showStatus('Çeviri tamamlandı!', 'success');
+                } else {
+                    showStatus('Hata: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showStatus('Bir hata oluştu: ' + error.message, 'danger');
+            } finally {
+                translateBtn.disabled = false;
+                translateBtn.innerHTML = '<i class="bi bi-arrow-left-right"></i> Çevir';
+            }
+        });
+
+        swapBtn.addEventListener('click', () => {
+            // Dilleri değiştir
+            const tempLang = sourceLanguage.value;
+            sourceLanguage.value = targetLanguage.value;
+            targetLanguage.value = tempLang;
+
+            // Metinleri değiştir
+            const tempText = sourceText.value;
+            sourceText.value = targetText.value;
+            targetText.value = tempText;
+
+            showStatus('Diller değiştirildi.', 'info');
+        });
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `alert alert-${type}`;
+            statusMessage.classList.remove('d-none');
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusMessage.classList.add('d-none');
+                }, 3000);
+            }
+        }
+
+        // Enter tuşu ile çeviri yapma
+        sourceText.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                translateBtn.click();
+            }
+        });
+    </script>
+}
+
+<style>
+    .card {
+        border-radius: 15px;
+    }
+    
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+    
+    textarea {
+        resize: vertical;
+        font-size: 16px;
+    }
+    
+    .btn-lg {
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    
+    .form-select-lg {
+        border-radius: 10px;
+    }
+    
+    .form-control {
+        border-radius: 10px;
+    }
+</style>
